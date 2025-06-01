@@ -1,49 +1,50 @@
 import requests
 import time
-import telegram
-import os
 
-# Environment variables
-SMS_API_URL = os.getenv("SMS_API_URL", "http://94.23.120.156/ints/sms/get-sms")
-SMS_API_USER = os.getenv("SMS_API_USER")
-SMS_API_PASS = os.getenv("SMS_API_PASS")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# Configuration
+SMS_API_URL = "http://109.236.84.81/api/sms"
+SMS_API_TOKEN = "g4eFcoWUgHo8T1VDQQ=="
+TELEGRAM_BOT_TOKEN = "7612118596:AAFzuo-2q_i8oxxrd6C6a8pmx4JCBJAlwRs"
+TELEGRAM_CHAT_ID = "-1002535103722"
 
-bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+last_sms_id = None
 
-def fetch_sms():
+def get_sms():
     try:
-        response = requests.post(SMS_API_URL, data={
-            'username': SMS_API_USER,
-            'password': SMS_API_PASS
-        })
-        if response.status_code == 200:
-            return response.json()
+        response = requests.get(
+            SMS_API_URL,
+            headers={"Authorization": f"Bearer {SMS_API_TOKEN}"},
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json().get("messages", [])
     except Exception as e:
-        print(f"❌ SMS ফেচ করতে সমস্যা: {e}")
-    return []
+        print("Failed to fetch SMS:", e)
+        return []
 
-def main():
-    sent_ids = set()
+def send_to_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
+    try:
+        requests.post(url, data=payload)
+    except Exception as e:
+        print("Telegram send failed:", e)
+
+def main_loop():
+    global last_sms_id
     while True:
-        messages = fetch_sms()
-        for sms in messages:
-            sms_id = str(sms.get('id'))
-            sender = sms.get('sender', 'Unknown')
-            message = sms.get('message', '')
-            if sms_id not in sent_ids:
-                text = (
-                    f"📥 নতুন SMS পাওয়া গেছে!\n"
-                    f"👤 প্রেরক: {sender}\n"
-                    f"📝 মেসেজ: {message}"
-                )
-                try:
-                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=text)
-                    sent_ids.add(sms_id)
-                except Exception as e:
-                    print(f"❌ Telegram তে পাঠাতে সমস্যা: {e}")
+        messages = get_sms()
+        if messages:
+            for msg in messages:
+                msg_id = msg.get("id")
+                if msg_id != last_sms_id:
+                    sms_text = msg.get("text", "📩 New SMS Received")
+                    send_to_telegram(f"📨 <b>SMS:</b>
+{sms_text}")
+                    last_sms_id = msg_id
         time.sleep(10)
 
 if __name__ == "__main__":
-    main()
+    print("✅ Bot is running...")
+    main_loop()
+    
