@@ -1,0 +1,15 @@
+services:
+  - type: worker
+    name: sms-telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: SMS_API_USER
+        value: your_username_here
+      - key: SMS_API_PASS
+        value: your_password_here
+      - key: TELEGRAM_BOT_TOKEN
+        value: your_telegram_bot_token
+      - key: TELEGRAM_CHAT_ID
+        value: -100xxxxxxxxxx  # Channel or group ID
